@@ -10,14 +10,14 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:code-game.helloWorld"
+		"onCommand:code-game.onClick"
 	],
 	"main": "./extension.js",
 	"contributes": {
 		"commands": [
 			{
-				"command": "code-game.helloWorld",
-				"title": "Hello World"
+				"command": "code-game.onClick",
+				"title": "Teams"
 			}
 		]
 	},
