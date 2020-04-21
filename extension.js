@@ -7,7 +7,7 @@ require("firebase/firestore");
 
 var firebaseConfig = {
   //TODO Make this secret ... Whoops
-  apiKey: "AIzaSyA4tzPbTSAm7G8FUOk0i82rQYWYhSZslq4",
+  apiKey: "", // changed
   authDomain: "teamcode-dff02.firebaseapp.com",
   databaseURL: "https://teamcode-dff02.firebaseio.com",
   projectId: "teamcode-dff02",
