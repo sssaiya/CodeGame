@@ -1,13 +1,31 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require("vscode");
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
+var firebase = require("firebase/app");
+require("firebase/auth");
+require("firebase/firestore");
+
+var firebaseConfig = {
+  //TODO Make this secret ... Whoops
+  apiKey: "AIzaSyA4tzPbTSAm7G8FUOk0i82rQYWYhSZslq4",
+  authDomain: "teamcode-dff02.firebaseapp.com",
+  databaseURL: "https://teamcode-dff02.firebaseio.com",
+  projectId: "teamcode-dff02",
+  storageBucket: "teamcode-dff02.appspot.com",
+  messagingSenderId: "1009085822488",
+  appId: "1:1009085822488:web:84617fcae4129cb781356d",
+  measurementId: "G-VPBM18RHTL",
+};
 
 /**
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  var provider = new firebase.auth.GithubAuthProvider();
+  provider.addScope("repo"); // TODO - Remove if not nesessary but asks for permissions
+
   let alignment = 10;
   // Use the console to output diagnostic information (console.log) and errors (console.error)
   // This line of code will only be executed once when your extension is activated
@@ -30,7 +48,6 @@ function activate(context) {
 
   offlineIcon.command = "code-game.Online";
   offlineIcon.text = "$(debug-hint)";
-
 
   onlineIcon.command = "code-game.Offline";
   onlineIcon.text = "$(circle-filled)";
@@ -64,7 +81,23 @@ function activate(context) {
     }
   );
 
-  context.subscriptions.push(disposable, barItem, goOnline, onlineIcon, offlineIcon, goOffline);
+  let signInWithGit = vscode.commands.registerCommand(
+    "code-game.SignInWithGit",
+    function () {
+      vscode.window.showInformationMessage("Loading ...");
+      firebase.auth().signInWithRedirect(provider);
+    }
+  );
+
+  context.subscriptions.push(
+    disposable,
+    barItem,
+    goOnline,
+    onlineIcon,
+    offlineIcon,
+    goOffline,
+    signInWithGit
+  );
 }
 exports.activate = activate;
 
