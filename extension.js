@@ -2,12 +2,28 @@
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require("vscode");
 var firebase = require("firebase/app");
+const fetch = require("node-fetch");
 require("firebase/auth");
 require("firebase/firestore");
+// _token;
+var _token = undefined;
+
+var _isLoggedIn = false;
+var _webViewContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat Coding</title>
+</head>
+<body>
+    LOADING ...... If this Doesn't work please check your wifi connection
+</body>
+</html>`;
 
 var firebaseConfig = {
   //TODO Make this secret ... Whoops
-  apiKey: "", // changed
+  apiKey: "AIzaSyA4tzPbTSAm7G8FUOk0i82rQYWYhSZslq4", // Changed
   authDomain: "teamcode-dff02.firebaseapp.com",
   databaseURL: "https://teamcode-dff02.firebaseio.com",
   projectId: "teamcode-dff02",
@@ -61,6 +77,21 @@ function activate(context) {
     "code-game.onClick",
     function () {
       vscode.window.showInformationMessage("Hello World from CodeGame!!");
+      if (!isLoggedIn) {
+        const panel = vscode.window.createWebviewPanel(
+          "gitAuth",
+          "ClanCode",
+          vscode.ViewColumn.One,
+          {}
+        );
+        const updateWebview = () => {
+          if (isLoggedIn) panel.webview.html = _webViewContent;
+        };
+        getGitLoginWebviewContent();
+        panel.webview.html = _webViewContent;
+        // And schedule updates to the content every second
+        setInterval(updateWebview, 1000);
+      }
     }
   );
 
@@ -85,7 +116,9 @@ function activate(context) {
     "code-game.SignInWithGit",
     function () {
       vscode.window.showInformationMessage("Loading ...");
-      firebase.auth().signInWithRedirect(provider);
+      // Note - Cant use Login with popup or redirect functionality from firebase auth Documentation
+      // as VSCode lacks some support for hhtp storage etc, have to use GitHub OAuth 2.0 endpoints To integrate
+      // sign in flow manually
     }
   );
 
@@ -99,6 +132,21 @@ function activate(context) {
     signInWithGit
   );
 }
+
+function getGitLoginWebviewContent() {
+  // @ts-ignore
+  fetch("https://teamcode-dff02.web.app/index")
+    .then((res) => res.text())
+    .then((body) => (_webViewContent = body));
+  setInterval(getLoggedInContent, 1000);
+}
+function getLoggedInContent() {
+  if (_isLoggedIn) {
+    fetch("https://teamcode-dff02.web.app/gitLogin")
+      .then((res) => res.text())
+      .then((body) => (_webViewContent = body));
+  }
+}
 exports.activate = activate;
 
 // this method is called when your extension is deactivated
@@ -107,4 +155,6 @@ function deactivate() {}
 module.exports = {
   activate,
   deactivate,
+  _isLoggedIn,
+  _token,
 };
