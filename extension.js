@@ -2,24 +2,11 @@
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require("vscode");
 var firebase = require("firebase/app");
-const fetch = require("node-fetch");
 require("firebase/auth");
 require("firebase/firestore");
-// _token;
-var _token = undefined;
-
-var _isLoggedIn = false;
-var _webViewContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cat Coding</title>
-</head>
-<body>
-    LOADING ...... If this Doesn't work please check your wifi connection
-</body>
-</html>`;
+const USER_NOT_FOUND = "auth/user-not-found";
+const INCORRECT_PASSWORD = "auth/wrong-password";
+const INVALID_EMAIL = "auth/invalid-email";
 
 var firebaseConfig = {
   //TODO Make this secret ... Whoops
@@ -77,21 +64,6 @@ function activate(context) {
     "code-game.onClick",
     function () {
       vscode.window.showInformationMessage("Hello World from CodeGame!!");
-      if (!isLoggedIn) {
-        const panel = vscode.window.createWebviewPanel(
-          "gitAuth",
-          "ClanCode",
-          vscode.ViewColumn.One,
-          {}
-        );
-        const updateWebview = () => {
-          if (isLoggedIn) panel.webview.html = _webViewContent;
-        };
-        getGitLoginWebviewContent();
-        panel.webview.html = _webViewContent;
-        // And schedule updates to the content every second
-        setInterval(updateWebview, 1000);
-      }
     }
   );
 
@@ -112,10 +84,80 @@ function activate(context) {
     }
   );
 
-  let signInWithGit = vscode.commands.registerCommand(
-    "code-game.SignInWithGit",
-    function () {
-      vscode.window.showInformationMessage("Loading ...");
+  let register = vscode.commands.registerCommand(
+    "code-game.Register",
+    async function () {
+      const email = await vscode.window.showInputBox({
+        placeHolder: "Enter your email to log into ClanCode",
+      });
+      const password = await vscode.window.showInputBox({
+        placeHolder: "Enter your password to log into ClanCode",
+        password: true,
+      });
+
+      firebase
+        .auth()
+        .createUserWithEmailAndPassword(email, password)
+        .catch(function (error) {
+          console.log(errorMessage);
+          // Handle Errors here.
+          if ((error.code = INVALID_EMAIL)) {
+            vscode.window.showInformationMessage(
+              "The email - " + email + "is Invalid"
+            );
+          }
+          var errorCode = error.code;
+          var errorMessage = error.message;
+          console.log(error.code);
+          // ...
+        });
+
+      vscode.window.showInformationMessage("Registering " + email);
+    }
+  );
+
+  let logIn = vscode.commands.registerCommand(
+    "code-game.LogIn",
+    async function () {
+      const email = await vscode.window.showInputBox({
+        placeHolder: "Enter your email to log into ClanCode",
+      });
+      const password = await vscode.window.showInputBox({
+        placeHolder: "Enter your password to log into ClanCode",
+        password: true,
+      });
+
+      firebase
+        .auth()
+        .signInWithEmailAndPassword(email, password)
+        .catch(function (error) {
+          console.log(error.code);
+          if (error.code == USER_NOT_FOUND) {
+            vscode.window.showInformationMessage(
+              "User - " +
+                email +
+                " not found, Please check of you mistyped it, else Register email First using command " +
+                "ClanCode: Register your account!"
+            );
+          }
+          if ((error.code = INCORRECT_PASSWORD)) {
+            vscode.window.showInformationMessage(
+              "Invalid Password ! Try again "
+            );
+          }
+        });
+
+      const checkSignIn = () => {
+        vscode.window.showInformationMessage("Here");
+        // firebase.auth().isS
+        console.log(firebase.auth());
+        var isAnonymous = firebase.auth().currentUser.isAnonymous;
+        if (isAnonymous) {
+          console.log("Signed in As anonymous");
+        } else console.log("Not Signed in yet ..");
+      };
+
+      //setInterval(checkSignIn, 1000);
       // Note - Cant use Login with popup or redirect functionality from firebase auth Documentation
       // as VSCode lacks some support for hhtp storage etc, have to use GitHub OAuth 2.0 endpoints To integrate
       // sign in flow manually
@@ -129,24 +171,11 @@ function activate(context) {
     onlineIcon,
     offlineIcon,
     goOffline,
-    signInWithGit
+    logIn,
+    register
   );
 }
 
-function getGitLoginWebviewContent() {
-  // @ts-ignore
-  fetch("https://teamcode-dff02.web.app/index")
-    .then((res) => res.text())
-    .then((body) => (_webViewContent = body));
-  setInterval(getLoggedInContent, 1000);
-}
-function getLoggedInContent() {
-  if (_isLoggedIn) {
-    fetch("https://teamcode-dff02.web.app/gitLogin")
-      .then((res) => res.text())
-      .then((body) => (_webViewContent = body));
-  }
-}
 exports.activate = activate;
 
 // this method is called when your extension is deactivated
@@ -155,6 +184,4 @@ function deactivate() {}
 module.exports = {
   activate,
   deactivate,
-  _isLoggedIn,
-  _token,
 };
