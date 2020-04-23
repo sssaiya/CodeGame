@@ -7,6 +7,8 @@ require("firebase/firestore");
 const USER_NOT_FOUND = "auth/user-not-found";
 const INCORRECT_PASSWORD = "auth/wrong-password";
 const INVALID_EMAIL = "auth/invalid-email";
+var _uid = "0";
+var _user = null;
 
 var firebaseConfig = {
   //TODO Make this secret ... Whoops
@@ -28,6 +30,25 @@ function activate(context) {
   firebase.initializeApp(firebaseConfig);
   var provider = new firebase.auth.GithubAuthProvider();
   provider.addScope("repo"); // TODO - Remove if not nesessary but asks for permissions
+
+  firebase.auth().onAuthStateChanged(function (user) {
+    console.log("IN AUTH STATE CHANGE");
+    if (user) {
+      console.log(user);
+      if (user.displayName)
+        vscode.window.showInformationMessage("Hello - " + user.displayName);
+      else {
+        //TODO, Add Username, Email verify reminder hint (Aldready enabled on firebase)
+        vscode.window.showInformationMessage("Hello - " + user.email);
+        _uid = user.uid;
+        _user = user;
+      }
+      // User is signed in.
+    } else {
+      console.log("Nada");
+      // No user is signed in.
+    }
+  });
 
   let alignment = 10;
   // Use the console to output diagnostic information (console.log) and errors (console.error)
@@ -63,7 +84,12 @@ function activate(context) {
   let disposable = vscode.commands.registerCommand(
     "code-game.onClick",
     function () {
-      vscode.window.showInformationMessage("Hello World from CodeGame!!");
+      if (_uid == "0")
+        vscode.window.showInformationMessage("Sign in using command Clancode: Sign in");
+      else {
+        //Load Team on click here
+        vscode.window.showInformationMessage("Loading team for " + _user.email);
+      }
     }
   );
 
@@ -162,6 +188,11 @@ function activate(context) {
       // as VSCode lacks some support for hhtp storage etc, have to use GitHub OAuth 2.0 endpoints To integrate
       // sign in flow manually
     }
+  );
+
+  let init = vscode.commands.registerCommand(
+    "code-game.InitFlow",
+    async function () {}
   );
 
   context.subscriptions.push(

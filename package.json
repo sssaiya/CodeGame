@@ -17,7 +17,7 @@
     "commands": [
       {
         "command": "code-game.onClick",
-        "title": "Teams"
+        "title": "ClanCode: Initialize"
       },
       {
         "command": "code-game.LogIn",
