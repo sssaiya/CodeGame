@@ -31,17 +31,14 @@ function activate(context) {
       //Get Existing clan that user is member of once signed in
       const clanRef = await firebase
         .database()
-        .ref("/members-list/"+_uid)
+        .ref("/members-list/" + _uid)
         .once("value")
         .then(function (snapshot) {
           // var username = (snapshot.val() && snapshot.val().username) || 'Anonymous';
-          if (snapshot.val() == false) _isInClan = false;
+          if (!snapshot.val()) _isInClan = false;
           else {
             _isInClan = true;
             _clanTag = snapshot.val();
-            console.log("Here - " + _clanTag);
-            console.log(snapshot);
-            console.log(_uid);
           }
         });
       var displayString = "Hello - ";
@@ -142,7 +139,7 @@ function activate(context) {
         //Load Team on click here
         if (_isInClan)
           vscode.window.showInformationMessage(
-            "Loading Clan for " + _user.email
+            "Loading Clan " + _clanTag + "for " + _user.email
           );
         else {
           vscode.window.showInformationMessage("Create or Join a Clan first !");
@@ -336,6 +333,39 @@ function activate(context) {
     }
   );
 
+  let joinClanMenu = vscode.commands.registerCommand(
+    "code-game.joinClan",
+    async function joinClan() {
+      if (_user == null) {
+        return;
+      }
+      const clanTagLowerCase = await vscode.window.showInputBox({
+        placeHolder: "Eg. ******",
+        prompt: "Join a Clan via its ClanTag",
+      });
+      const clanTag = clanTagLowerCase.toUpperCase(); //Configured to be case insensitive in DB :)
+
+      console.log("Attempting to join clan" + clanTag);
+
+      //Add to the Clan
+      var clanMembersDatabaseRef = firebase
+        .database()
+        .ref("/clans/" + clanTag + "/members");
+      clanMembersDatabaseRef.child("/" + _uid).set({
+        email: _user.email,
+      });
+
+      //Double link for easy of access
+      var clanMemberAssociationList = firebase
+        .database()
+        .ref("/members-list/" + _uid);
+
+      clanMemberAssociationList.set(clanTag);
+      _clanTag = clanTag;
+      _isInClan = true;
+    }
+  );
+
   // Make one command opening this menu to execute the other commands :)
   let CodeGameMenu = vscode.commands.registerCommand(
     "code-game.CodeGame",
@@ -375,6 +405,7 @@ function activate(context) {
         vscode.commands.executeCommand("code-game.createClan");
       }
       if (result == "Join Clan") {
+        vscode.commands.executeCommand("code-game.joinClan");
       }
       if (result == "Sign in") {
         vscode.commands.executeCommand("code-game.LogIn");
@@ -413,7 +444,8 @@ function activate(context) {
     logIn,
     register,
     CodeGameMenu,
-    createClanMenu
+    createClanMenu,
+    joinClanMenu
   );
 }
 
