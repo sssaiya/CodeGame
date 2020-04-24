@@ -90,7 +90,7 @@ function activate(context) {
     alignment - 0.1
   );
   barItem.command = "code-game.onClick";
-  barItem.text = "Here !";
+  barItem.text = "ClanCode";
   barItem.show();
 
   offlineIcon.command = "code-game.Online";
@@ -245,6 +245,46 @@ function activate(context) {
     }
   );
 
+  // Make one command opening this menu to execute the other commands :)
+  let CodeGameMenu = vscode.commands.registerCommand(
+    "code-game.CodeGame",
+    async function showQuickPick() {
+      const result = await vscode.window.showQuickPick(
+        ["Register", "Sign in", "Create Clan", "Join Clan"],
+        {
+          placeHolder: "Create or Join Clan",
+          onDidSelectItem: (item) => {
+            if (item == "Create Clan" || item == "Join Clan") {
+              if (_user == null) {
+                vscode.window.showInformationMessage(
+                  `Please Sign in before trying to ${item}`
+                );
+              }
+            }
+            if (item == "Sign in" || item == "Register") {
+              if (_user != null) {
+                vscode.window.showInformationMessage(
+                  "Signed in as " + _user.email
+                );
+              }
+            }
+          },
+        }
+      );
+      // vscode.window.showInformationMessage(`Got: ${result}`);
+      if (result == "Create Clan") {
+      }
+      if (result == "Join Clan") {
+      }
+      if (result == "Sign in") {
+        vscode.commands.executeCommand("code-game.LogIn");
+      }
+      if (result == "Register") {
+        vscode.commands.executeCommand("code-game.Register");
+      }
+    }
+  );
+
   context.subscriptions.push(
     disposable,
     barItem,
@@ -253,7 +293,8 @@ function activate(context) {
     offlineIcon,
     goOffline,
     logIn,
-    register
+    register,
+    CodeGameMenu
   );
 }
 

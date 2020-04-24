@@ -10,22 +10,14 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:code-game.onClick"
+    "onCommand:code-game.CodeGame"
   ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "code-game.onClick",
-        "title": "ClanCode: Initialize"
-      },
-      {
-        "command": "code-game.LogIn",
-        "title": "ClanCode: Sign into ClanCode"
-      },
-      {
-        "command": "code-game.Register",
-        "title": "ClanCode: Register your account"
+        "command": "code-game.CodeGame",
+        "title": "ClanCode: Code with your clan"
       }
     ]
   },
