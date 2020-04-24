@@ -4,23 +4,13 @@ const vscode = require("vscode");
 var firebase = require("firebase/app");
 require("firebase/auth");
 require("firebase/firestore");
+require("firebase/database");
+const firebaseConfig = require("./firebaseConfig");
 const USER_NOT_FOUND = "auth/user-not-found";
 const INCORRECT_PASSWORD = "auth/wrong-password";
 const INVALID_EMAIL = "auth/invalid-email";
 var _uid = "0";
 var _user = null;
-
-var firebaseConfig = {
-  //TODO Make this secret ... Whoops
-  apiKey: "AIzaSyA4tzPbTSAm7G8FUOk0i82rQYWYhSZslq4", // Changed
-  authDomain: "teamcode-dff02.firebaseapp.com",
-  databaseURL: "https://teamcode-dff02.firebaseio.com",
-  projectId: "teamcode-dff02",
-  storageBucket: "teamcode-dff02.appspot.com",
-  messagingSenderId: "1009085822488",
-  appId: "1:1009085822488:web:84617fcae4129cb781356d",
-  measurementId: "G-VPBM18RHTL",
-};
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -34,7 +24,6 @@ function activate(context) {
   firebase.auth().onAuthStateChanged(function (user) {
     console.log("IN AUTH STATE CHANGE");
     if (user) {
-      console.log(user);
       if (user.displayName)
         vscode.window.showInformationMessage("Hello - " + user.displayName);
       else {
@@ -43,9 +32,43 @@ function activate(context) {
         _uid = user.uid;
         _user = user;
       }
+
       // User is signed in.
+
+      // * START PERSISTENCE WITH FIRESTORE *//
+      // Create a reference to this user's specific status node.
+      // This is where we will store data about being online/offline.
+      var userStatusDatabaseRef = firebase.database().ref("/status/" + _uid);
+      // firebase.database().
+      var isOfflineForDatabase = {
+        state: "offline",
+        last_changed: firebase.database.ServerValue.TIMESTAMP,
+      };
+      var isOnlineForDatabase = {
+        state: "online",
+        last_changed: firebase.database.ServerValue.TIMESTAMP,
+      };
+      firebase
+        .database()
+        .ref(".info/connected")
+        .on("value", function (snapshot) {
+          // If we're not currently connected, don't do anything.
+          if (snapshot.val() == false) {
+            return;
+          }
+
+          userStatusDatabaseRef
+            .onDisconnect()
+            .set(isOfflineForDatabase)
+            .then(function () {
+              userStatusDatabaseRef.set(isOnlineForDatabase);
+            })
+            .catch(function (error) {
+              console.log(error);
+            });
+        });
     } else {
-      console.log("Nada");
+      console.log("Not Signed in yet");
       // No user is signed in.
     }
   });
@@ -85,10 +108,13 @@ function activate(context) {
     "code-game.onClick",
     function () {
       if (_uid == "0")
-        vscode.window.showInformationMessage("Sign in using command Clancode: Sign in");
+        vscode.window.showInformationMessage(
+          "Sign in using command Clancode: Sign in"
+        );
       else {
         //Load Team on click here
         vscode.window.showInformationMessage("Loading team for " + _user.email);
+        // vscode.
       }
     }
   );
@@ -99,6 +125,26 @@ function activate(context) {
       vscode.window.showInformationMessage("ONLINE");
       offlineIcon.hide();
       onlineIcon.show();
+      var userStatusDatabaseRef = firebase.database().ref("/status/" + _uid);
+      // firebase.database().
+      var isActiveForDatabase = {
+        state: "Active",
+        last_changed: firebase.database.ServerValue.TIMESTAMP,
+      };
+      if (_user) {
+        console.log("Going Active");
+        firebase
+          .database()
+          .ref(".info/connected")
+          .on("value", function (snapshot) {
+            // If we're not currently connected, don't do anything.
+            if (snapshot.val() == false) {
+              return;
+            }
+
+            userStatusDatabaseRef.set(isActiveForDatabase);
+          });
+      }
     }
   );
   let goOffline = vscode.commands.registerCommand(
@@ -107,6 +153,26 @@ function activate(context) {
       vscode.window.showInformationMessage("OFFLINE");
       onlineIcon.hide();
       offlineIcon.show();
+      var userStatusDatabaseRef = firebase.database().ref("/status/" + _uid);
+      // firebase.database().
+      var isAwayForDatabase = {
+        state: "away",
+        last_changed: firebase.database.ServerValue.TIMESTAMP,
+      };
+      if (_user) {
+        console.log("Going Away");
+        firebase
+          .database()
+          .ref(".info/connected")
+          .on("value", function (snapshot) {
+            // If we're not currently connected, don't do anything.
+            if (snapshot.val() == false) {
+              return;
+            }
+
+            userStatusDatabaseRef.set(isAwayForDatabase);
+          });
+      }
     }
   );
 
@@ -173,26 +239,10 @@ function activate(context) {
           }
         });
 
-      const checkSignIn = () => {
-        vscode.window.showInformationMessage("Here");
-        // firebase.auth().isS
-        console.log(firebase.auth());
-        var isAnonymous = firebase.auth().currentUser.isAnonymous;
-        if (isAnonymous) {
-          console.log("Signed in As anonymous");
-        } else console.log("Not Signed in yet ..");
-      };
-
-      //setInterval(checkSignIn, 1000);
       // Note - Cant use Login with popup or redirect functionality from firebase auth Documentation
       // as VSCode lacks some support for hhtp storage etc, have to use GitHub OAuth 2.0 endpoints To integrate
       // sign in flow manually
     }
-  );
-
-  let init = vscode.commands.registerCommand(
-    "code-game.InitFlow",
-    async function () {}
   );
 
   context.subscriptions.push(
