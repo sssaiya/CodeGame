@@ -11,6 +11,8 @@ const INCORRECT_PASSWORD = "auth/wrong-password";
 const INVALID_EMAIL = "auth/invalid-email";
 var _uid = "0";
 var _user = null;
+var _isInClan = false;
+var _clanName = null;
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -113,7 +115,14 @@ function activate(context) {
         );
       else {
         //Load Team on click here
-        vscode.window.showInformationMessage("Loading team for " + _user.email);
+        if (_isInClan)
+          vscode.window.showInformationMessage(
+            "Loading Clan for " + _user.email
+          );
+        else {
+          vscode.window.showInformationMessage("Create or Join a Clan first !");
+          vscode.commands.executeCommand("code-game.CodeGame");
+        }
         // vscode.
       }
     }
@@ -180,10 +189,12 @@ function activate(context) {
     "code-game.Register",
     async function () {
       const email = await vscode.window.showInputBox({
-        placeHolder: "Enter your email to log into ClanCode",
+        placeHolder: "Eg. superstar@clancode.com",
+        prompt: "Enter your email to log into ClanCode",
       });
       const password = await vscode.window.showInputBox({
-        placeHolder: "Enter your password to log into ClanCode",
+        placeHolder: "",
+        prompt: "Enter your password to log into ClanCode",
         password: true,
       });
 
@@ -212,10 +223,12 @@ function activate(context) {
     "code-game.LogIn",
     async function () {
       const email = await vscode.window.showInputBox({
-        placeHolder: "Enter your email to log into ClanCode",
+        placeHolder: "superstar@clancode.com",
+        prompt: "Enter your email to log into ClanCode",
       });
       const password = await vscode.window.showInputBox({
-        placeHolder: "Enter your password to log into ClanCode",
+        placeHolder: "",
+        prompt: "Enter your password to log into ClanCode",
         password: true,
       });
 
@@ -242,6 +255,47 @@ function activate(context) {
       // Note - Cant use Login with popup or redirect functionality from firebase auth Documentation
       // as VSCode lacks some support for hhtp storage etc, have to use GitHub OAuth 2.0 endpoints To integrate
       // sign in flow manually
+    }
+  );
+  let createClanMenu = vscode.commands.registerCommand(
+    "code-game.createClan",
+    async function createClan() {
+      if (_user == null) {
+        return;
+      }
+      // const checkButton = vscode.QuickInputButtons;
+      // Note, Buttons need Typescript, learn it soon
+      // const button = vscode.QuickInputButton().;
+      const clanName = await vscode.window.showInputBox({
+        placeHolder: "Eg. StarHackers",
+        prompt: "Enter Clan Name",
+      });
+      vscode.window.showInformationMessage("Creating Clan - " + clanName);
+
+      const clanTag = "000000"; // TODO Unique ID generation (base 32)
+      //https://stackoverflow.com/questions/9543715/generating-human-readable-usable-short-but-unique-ids
+
+      //Create the clann in DB
+      var newClanDatabaseRef = firebase.database().ref("/clans/" + clanTag);
+      newClanDatabaseRef
+        .set({
+          name: clanName,
+          created: firebase.database.ServerValue.TIMESTAMP,
+        })
+        .catch(function (error) {
+          console.log("Create Clan Error -");
+          console.log(error);
+        });
+
+      //Add Creator to the Clan
+      var clanMembersDatabaseRef = firebase
+        .database()
+        .ref("/clans/" + clanTag + "/members");
+      clanMembersDatabaseRef.child("/" + _uid).set({
+        email: _user.email,
+      });
+      _isInClan = true;
+      _clanName = clanName;
     }
   );
 
@@ -273,6 +327,7 @@ function activate(context) {
       );
       // vscode.window.showInformationMessage(`Got: ${result}`);
       if (result == "Create Clan") {
+        vscode.commands.executeCommand("code-game.createClan");
       }
       if (result == "Join Clan") {
       }
@@ -294,7 +349,8 @@ function activate(context) {
     goOffline,
     logIn,
     register,
-    CodeGameMenu
+    CodeGameMenu,
+    createClanMenu
   );
 }
 
