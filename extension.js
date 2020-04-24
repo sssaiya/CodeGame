@@ -350,14 +350,15 @@ function activate(context) {
   //stackoverflow.com/questions/9543715/generating-human-readable-usable-short-but-unique-ids
   https: function GetUniqueClanTag(length) {
     const _base62chars =
-      "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+      "123456789BCDFGHJKLMNPQRSTVWXYZabcdefghijklmnopqrstuvwxyz";
     // Removed I as confused with 1
     // Removed O and 0
     // function random = Math.random()
+    // Remove Remaninig vowels(U, E, A) to prevent bad word generation
     var tagBuilder = "";
 
     for (var i = 0; i < length; i++) {
-      const keyIndex = Math.floor(Math.random() * 30); // Changed 33 to 30 as removed 3 characters
+      const keyIndex = Math.floor(Math.random() * 27); // Changed 33 to 27 as removed 6 characters
       tagBuilder = tagBuilder + _base62chars.charAt(keyIndex);
     }
     return tagBuilder;
