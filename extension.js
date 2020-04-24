@@ -12,7 +12,7 @@ const INVALID_EMAIL = "auth/invalid-email";
 var _uid = "0";
 var _user = null;
 var _isInClan = false;
-var _clanName = null;
+var _clanTag = null;
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -23,17 +23,42 @@ function activate(context) {
   var provider = new firebase.auth.GithubAuthProvider();
   provider.addScope("repo"); // TODO - Remove if not nesessary but asks for permissions
 
-  firebase.auth().onAuthStateChanged(function (user) {
+  firebase.auth().onAuthStateChanged(async function (user) {
     console.log("IN AUTH STATE CHANGE");
     if (user) {
-      if (user.displayName)
-        vscode.window.showInformationMessage("Hello - " + user.displayName);
-      else {
+      _uid = user.uid;
+      _user = user;
+      //Get Existing clan that user is member of once signed in
+      const clanRef = await firebase
+        .database()
+        .ref("/members-list/"+_uid)
+        .once("value")
+        .then(function (snapshot) {
+          // var username = (snapshot.val() && snapshot.val().username) || 'Anonymous';
+          if (snapshot.val() == false) _isInClan = false;
+          else {
+            _isInClan = true;
+            _clanTag = snapshot.val();
+            console.log("Here - " + _clanTag);
+            console.log(snapshot);
+            console.log(_uid);
+          }
+        });
+      var displayString = "Hello - ";
+
+      if (user.displayName) {
+        displayString = displayString + user.displayName;
+      } else {
+        displayString = displayString + user.email;
         //TODO, Add Username, Email verify reminder hint (Aldready enabled on firebase)
-        vscode.window.showInformationMessage("Hello - " + user.email);
-        _uid = user.uid;
-        _user = user;
       }
+
+      if (_isInClan) {
+        displayString = displayString + ", member of clan - " + _clanTag;
+      }
+      vscode.window.showInformationMessage(displayString);
+
+      // * Load Clan Settings * //
 
       // User is signed in.
 
@@ -297,11 +322,17 @@ function activate(context) {
         email: _user.email,
       });
 
+      //Double link for easy of access
+      var clanMemberAssociationList = firebase
+        .database()
+        .ref("/members-list/" + _uid)
+        .set(clanTag);
+
       vscode.window.showInformationMessage(
         "Created Clan - " + clanName + " And Clan Tag - " + clanTag
       );
       _isInClan = true;
-      _clanName = clanName;
+      _clanTag = clanTag;
     }
   );
 
@@ -309,28 +340,36 @@ function activate(context) {
   let CodeGameMenu = vscode.commands.registerCommand(
     "code-game.CodeGame",
     async function showQuickPick() {
-      const result = await vscode.window.showQuickPick(
-        ["Register", "Sign in", "Create Clan", "Join Clan"],
-        {
-          placeHolder: "Create or Join Clan",
-          onDidSelectItem: (item) => {
-            if (item == "Create Clan" || item == "Join Clan") {
-              if (_user == null) {
-                vscode.window.showInformationMessage(
-                  `Please Sign in before trying to ${item}`
-                );
-              }
-            }
-            if (item == "Sign in" || item == "Register") {
-              if (_user != null) {
-                vscode.window.showInformationMessage(
-                  "Signed in as " + _user.email
-                );
-              }
-            }
-          },
+      var options = [];
+      if (_user == null) {
+        options.push("Register");
+        options.push("Sign in");
+      } else {
+        // Is Signed in/ Authenticated
+        if (!_isInClan) {
+          options.push("Create Clan");
+          options.push("Join Clan");
         }
-      );
+      }
+      const result = await vscode.window.showQuickPick(options, {
+        placeHolder: "Welcome To ClanCode",
+        onDidSelectItem: (item) => {
+          if (item == "Create Clan" || item == "Join Clan") {
+            if (_user == null) {
+              vscode.window.showInformationMessage(
+                `Please Sign in before trying to ${item}`
+              );
+            }
+          }
+          if (item == "Sign in" || item == "Register") {
+            if (_user != null) {
+              vscode.window.showInformationMessage(
+                "Signed in as " + _user.email
+              );
+            }
+          }
+        },
+      });
       // vscode.window.showInformationMessage(`Got: ${result}`);
       if (result == "Create Clan") {
         vscode.commands.executeCommand("code-game.createClan");
