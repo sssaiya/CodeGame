@@ -270,9 +270,11 @@ function activate(context) {
         placeHolder: "Eg. StarHackers",
         prompt: "Enter Clan Name",
       });
-      vscode.window.showInformationMessage("Creating Clan - " + clanName);
 
-      const clanTag = "000000"; // TODO Unique ID generation (base 32)
+      const clanTag = GetUniqueClanTag(6);
+      vscode.window.showInformationMessage(clanTag);
+
+      // const clanTag = "000000"; // TODO Unique ID generation (base 32)
       //https://stackoverflow.com/questions/9543715/generating-human-readable-usable-short-but-unique-ids
 
       //Create the clann in DB
@@ -294,6 +296,10 @@ function activate(context) {
       clanMembersDatabaseRef.child("/" + _uid).set({
         email: _user.email,
       });
+
+      vscode.window.showInformationMessage(
+        "Created Clan - " + clanName + " And Clan Tag - " + clanTag
+      );
       _isInClan = true;
       _clanName = clanName;
     }
@@ -339,6 +345,23 @@ function activate(context) {
       }
     }
   );
+
+  // Generates Clan tags qunique and not Case Sensitive
+  //stackoverflow.com/questions/9543715/generating-human-readable-usable-short-but-unique-ids
+  https: function GetUniqueClanTag(length) {
+    const _base62chars =
+      "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    // Removed I as confused with 1
+    // Removed O and 0
+    // function random = Math.random()
+    var tagBuilder = "";
+
+    for (var i = 0; i < length; i++) {
+      const keyIndex = Math.floor(Math.random() * 30); // Changed 33 to 30 as removed 3 characters
+      tagBuilder = tagBuilder + _base62chars.charAt(keyIndex);
+    }
+    return tagBuilder;
+  }
 
   context.subscriptions.push(
     disposable,
