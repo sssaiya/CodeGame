@@ -5,6 +5,7 @@ var firebase = require("firebase/app");
 require("firebase/auth");
 require("firebase/firestore");
 require("firebase/database");
+const { app, BrowserWindow } = require("electron");
 const firebaseConfig = require("./firebaseConfig");
 const USER_NOT_FOUND = "auth/user-not-found";
 const INCORRECT_PASSWORD = "auth/wrong-password";
@@ -13,6 +14,20 @@ var _uid = "0";
 var _user = null;
 var _isInClan = false;
 var _clanTag = null;
+
+// function createWindow() {
+//   // Create the browser window.
+//   let win = new BrowserWindow({
+//     width: 800,
+//     height: 600,
+//     webPreferences: {
+//       nodeIntegration: true,
+//     },
+//   });
+
+//   // and load the index.html of the app.
+//   win.loadFile("./public/index.html");
+// }
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -43,6 +58,8 @@ function activate(context) {
           else {
             _isInClan = true;
             _clanTag = snapshot.val();
+            context.globalState.update("isInClan", _isInClan);
+            context.globalState.update("clanTag", _clanTag);
           }
         });
       var displayString = "Hello - ";
@@ -178,6 +195,7 @@ function activate(context) {
             });
             outputChannel.clear();
           };
+          // app.whenReady().then(createWindow);
 
           setInterval(getClan, 5000);
         } else {
@@ -406,8 +424,10 @@ function activate(context) {
     "code-game.CodeGame",
     async function showQuickPick() {
       var options = [];
-      _user = context.globalState.get("user");
-      _uid = context.globalState.get("uid");
+      // _user = context.globalState.get("user");
+      // _uid = context.globalState.get("uid");
+      // _isInClan = context.globalState.get("isInClan");
+      // _clanTag = context.globalState.get("clanTag");
       if (_user == null) {
         options.push("Register");
         options.push("Sign in");
