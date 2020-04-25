@@ -97,6 +97,23 @@ function activate(context) {
     }
   });
 
+  async function getStatus(uid) {
+    firebase
+      .database()
+      .ref("/status/" + uid.val())
+      .on("value", function (snapshot) {
+        const status = snapshot.val().state;
+        const username = snapshot.val().last_changed; // Change TODO to username (Collect on registration)
+        console.log("uid - " + username + ", status - " + status);
+      });
+  }
+
+   function getClanStatus(clanMembers) {
+    clanMembers.forEach(function (element) {
+      getStatus(element);
+    });
+  }
+
   let alignment = 10;
   // Use the console to output diagnostic information (console.log) and errors (console.error)
   // This line of code will only be executed once when your extension is activated
@@ -137,11 +154,29 @@ function activate(context) {
         );
       else {
         //Load Team on click here
-        if (_isInClan)
+        if (_isInClan) {
           vscode.window.showInformationMessage(
             "Loading Clan " + _clanTag + "for " + _user.email
           );
-        else {
+          var outputChannel = vscode.window.createOutputChannel("Here");
+          outputChannel.append("Hereee");
+          outputChannel.show();
+
+          const getClan = async function () {
+            var clanRef = firebase
+              .database()
+              .ref("/clans/" + _clanTag + "/members");
+            clanRef.once("value").then(async function (snapshot) {
+              // var username = (snapshot.val() && snapshot.val().username) || 'Anonymous';
+              // const clanMembers = JSON.parse(snapshot.val());
+              const clanMembers = snapshot;
+              getClanStatus(clanMembers);
+            });
+            outputChannel.clear();
+          };
+
+          setInterval(getClan, 5000);
+        } else {
           vscode.window.showInformationMessage("Create or Join a Clan first !");
           vscode.commands.executeCommand("code-game.CodeGame");
         }
@@ -315,9 +350,7 @@ function activate(context) {
       var clanMembersDatabaseRef = firebase
         .database()
         .ref("/clans/" + clanTag + "/members");
-      clanMembersDatabaseRef.child("/" + _uid).set({
-        email: _user.email,
-      });
+      clanMembersDatabaseRef.push(_uid);
 
       //Double link for easy of access
       var clanMemberAssociationList = firebase
@@ -351,9 +384,7 @@ function activate(context) {
       var clanMembersDatabaseRef = firebase
         .database()
         .ref("/clans/" + clanTag + "/members");
-      clanMembersDatabaseRef.child("/" + _uid).set({
-        email: _user.email,
-      });
+      clanMembersDatabaseRef.push(_uid);
 
       //Double link for easy of access
       var clanMemberAssociationList = firebase
