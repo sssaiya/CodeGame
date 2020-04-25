@@ -28,6 +28,10 @@ function activate(context) {
     if (user) {
       _uid = user.uid;
       _user = user;
+
+      context.globalState.update("uid", _uid);
+      context.globalState.update("user", _user);
+
       //Get Existing clan that user is member of once signed in
       const clanRef = await firebase
         .database()
@@ -108,7 +112,7 @@ function activate(context) {
       });
   }
 
-   function getClanStatus(clanMembers) {
+  function getClanStatus(clanMembers) {
     clanMembers.forEach(function (element) {
       getStatus(element);
     });
@@ -402,6 +406,8 @@ function activate(context) {
     "code-game.CodeGame",
     async function showQuickPick() {
       var options = [];
+      _user = context.globalState.get("user");
+      _uid = context.globalState.get("uid");
       if (_user == null) {
         options.push("Register");
         options.push("Sign in");
