@@ -12,25 +12,33 @@
   "activationEvents": [
     "onCommand:code-game.CodeGame"
   ],
-  "main": "./extension.js",
+  "main": "./extension-core/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "code-game.CodeGame",
         "title": "ClanCode: Code with your clan"
+      },
+      {
+        "command": "extension.solutionmanager.showOpenProjects",
+        "title": "Show open editor windows"
       }
     ]
   },
   "scripts": {
     "lint": "eslint .",
     "pretest": "npm run lint",
-    "test": "node ./test/runTest.js"
+    "test": "node ./test/runTest.js",
+    "vscode:prepublish": "node ./extension-core/node_modules/vscode/bin/compile -p ./extension-core/",
+    "compile": "node ./extension-core/node_modules/vscode/bin/compile -watch -p ./extension-core/",
+    "postinstall": "node ./extension-core/node_modules/vscode/bin/install"
   },
   "devDependencies": {
-    "@types/vscode": "^1.44.0",
     "@types/glob": "^7.1.1",
     "@types/mocha": "^7.0.2",
     "@types/node": "^13.11.0",
+    "@types/vscode": "^1.44.0",
+    "electron-prebuilt": "^1.4.13",
     "eslint": "^6.8.0",
     "glob": "^7.1.6",
     "mocha": "^7.1.1",

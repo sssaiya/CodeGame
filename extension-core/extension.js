@@ -5,8 +5,9 @@ var firebase = require("firebase/app");
 require("firebase/auth");
 require("firebase/firestore");
 require("firebase/database");
-const { app, BrowserWindow } = require("electron");
-const firebaseConfig = require("./firebaseConfig");
+const path = require("path");
+// const spawn = require("child_process").spawn;
+const firebaseConfig = require("../firebaseConfig");
 const USER_NOT_FOUND = "auth/user-not-found";
 const INCORRECT_PASSWORD = "auth/wrong-password";
 const INVALID_EMAIL = "auth/invalid-email";
@@ -14,21 +15,8 @@ var _uid = "0";
 var _user = null;
 var _isInClan = false;
 var _clanTag = null;
-
-// function createWindow() {
-//   // Create the browser window.
-//   let win = new BrowserWindow({
-//     width: 800,
-//     height: 600,
-//     webPreferences: {
-//       nodeIntegration: true,
-//     },
-//   });
-
-//   // and load the index.html of the app.
-//   win.loadFile("./public/index.html");
-// }
-
+// const initCommands = require("./commands.js");
+// const initTreeview = require("./treeview.js");
 /**
  * @param {vscode.ExtensionContext} context
  */
@@ -41,11 +29,14 @@ function activate(context) {
   firebase.auth().onAuthStateChanged(async function (user) {
     console.log("IN AUTH STATE CHANGE");
     if (user) {
+      // initTreeview(context);
       _uid = user.uid;
       _user = user;
 
       context.globalState.update("uid", _uid);
       context.globalState.update("user", _user);
+
+      console.log("here");
 
       //Get Existing clan that user is member of once signed in
       const clanRef = await firebase
@@ -60,6 +51,21 @@ function activate(context) {
             _clanTag = snapshot.val();
             context.globalState.update("isInClan", _isInClan);
             context.globalState.update("clanTag", _clanTag);
+            const getClan = async function () {
+              var clanRef = firebase
+                .database()
+                .ref("/clans/" + _clanTag + "/members");
+              clanRef.once("value").then(async function (snapshot) {
+                // var username = (snapshot.val() && snapshot.val().username) || 'Anonymous';
+                // const clanMembers = JSON.parse(snapshot.val());
+                const clanMembers = snapshot;
+                getClanStatus(clanMembers);
+              });
+            };
+            //Activate status listener
+            console.log("Activated Clan Status Listener");
+            getClan();
+            setInterval(getClan, 5000);//every 5s
           }
         });
       var displayString = "Hello - ";
@@ -118,20 +124,54 @@ function activate(context) {
     }
   });
 
-  async function getStatus(uid) {
-    firebase
-      .database()
-      .ref("/status/" + uid.val())
-      .on("value", function (snapshot) {
-        const status = snapshot.val().state;
-        const username = snapshot.val().last_changed; // Change TODO to username (Collect on registration)
-        console.log("uid - " + username + ", status - " + status);
-      });
+  function getStatus2(clanMembersArray) {
+    var clanMembersStatusArray = [];
+    for (var i = 0; i < clanMembersArray.length; i++) {
+      firebase
+        .database()
+        .ref("/status/" + clanMembersArray[i])
+        .on("value", function (snapshot) {
+          const status = snapshot.val().state;
+          const username = snapshot.val().last_changed; // Change TODO to username (Collect on registration)
+          // console.log(status);
+          clanMembersStatusArray.push(status);
+        });
+    }
+    return clanMembersStatusArray;
+  }
+  // async function asyncForEach(array, callback) {
+  //   for (let index = 0; index < array.length; index++) {
+  //     await callback(array[index], index, array);
+  //   }
+  // }
+
+  async function getClanStatus(clanMembers) {
+    var clanMembersArray = [];
+
+    clanMembers.forEach((element) => {
+      clanMembersArray.push(element.val());
+    });
+    const clanMembersStatusArray = await getStatus2(clanMembersArray);
+    console.log(clanMembersArray);
+    console.log(clanMembersStatusArray);
+
+    writeToVirtualDocument(clanMembersArray, clanMembersStatusArray);
   }
 
-  function getClanStatus(clanMembers) {
-    clanMembers.forEach(function (element) {
-      getStatus(element);
+  function writeToVirtualDocument(clanMembersArray, clanMembersStatusArray) {
+    var options = [];
+
+    for (var i = 0; i < clanMembersArray.length; i++) {
+      var item = {
+        label: clanMembersArray[i],
+        description: "is " + clanMembersStatusArray[i],
+      };
+      options.push(item);
+    }
+
+    vscode.window.showQuickPick(options, {
+      placeHolder: _clanTag,
+      onDidSelectItem: (item) => {},
     });
   }
 
@@ -179,25 +219,8 @@ function activate(context) {
           vscode.window.showInformationMessage(
             "Loading Clan " + _clanTag + "for " + _user.email
           );
-          var outputChannel = vscode.window.createOutputChannel("Here");
-          outputChannel.append("Hereee");
-          outputChannel.show();
 
-          const getClan = async function () {
-            var clanRef = firebase
-              .database()
-              .ref("/clans/" + _clanTag + "/members");
-            clanRef.once("value").then(async function (snapshot) {
-              // var username = (snapshot.val() && snapshot.val().username) || 'Anonymous';
-              // const clanMembers = JSON.parse(snapshot.val());
-              const clanMembers = snapshot;
-              getClanStatus(clanMembers);
-            });
-            outputChannel.clear();
-          };
-          // app.whenReady().then(createWindow);
-
-          setInterval(getClan, 5000);
+          // setInterval(getClan, 5000);
         } else {
           vscode.window.showInformationMessage("Create or Join a Clan first !");
           vscode.commands.executeCommand("code-game.CodeGame");
@@ -474,8 +497,8 @@ function activate(context) {
   );
 
   // Generates Clan tags qunique and not Case Sensitive
-  //stackoverflow.com/questions/9543715/generating-human-readable-usable-short-but-unique-ids
-  https: function GetUniqueClanTag(length) {
+  //https:stackoverflow.com/questions/9543715/generating-human-readable-usable-short-but-unique-ids
+  function GetUniqueClanTag(length) {
     const _base62chars =
       "123456789BCDFGHJKLMNPQRSTVWXYZabcdefghijklmnopqrstuvwxyz";
     // Removed I as confused with 1
