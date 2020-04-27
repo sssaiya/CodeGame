@@ -15,8 +15,7 @@ var _uid = "0";
 var _user = null;
 var _isInClan = false;
 var _clanTag = null;
-// const initCommands = require("./commands.js");
-// const initTreeview = require("./treeview.js");
+
 /**
  * @param {vscode.ExtensionContext} context
  */
@@ -29,7 +28,6 @@ function activate(context) {
   firebase.auth().onAuthStateChanged(async function (user) {
     console.log("IN AUTH STATE CHANGE");
     if (user) {
-      // initTreeview(context);
       _uid = user.uid;
       _user = user;
 
@@ -44,7 +42,6 @@ function activate(context) {
         .ref("/members-list/" + _uid)
         .once("value")
         .then(function (snapshot) {
-          // var username = (snapshot.val() && snapshot.val().username) || 'Anonymous';
           if (!snapshot.val()) _isInClan = false;
           else {
             _isInClan = true;
@@ -56,8 +53,6 @@ function activate(context) {
                 .database()
                 .ref("/clans/" + _clanTag + "/members");
               clanRef.once("value").then(async function (snapshot) {
-                // var username = (snapshot.val() && snapshot.val().username) || 'Anonymous';
-                // const clanMembers = JSON.parse(snapshot.val());
                 const clanMembers = snapshot;
                 getClanStatus(clanMembers);
               });
@@ -65,7 +60,7 @@ function activate(context) {
             //Activate status listener
             console.log("Activated Clan Status Listener");
             getClan();
-            setInterval(getClan, 5000);//every 5s
+            setInterval(getClan, 5000); //every 5s
           }
         });
       var displayString = "Hello - ";
@@ -155,16 +150,31 @@ function activate(context) {
     console.log(clanMembersArray);
     console.log(clanMembersStatusArray);
 
-    writeToVirtualDocument(clanMembersArray, clanMembersStatusArray);
+    context.workspaceState.update("clanMembers", clanMembersArray);
+    context.workspaceState.update("clanMembersStatus", clanMembersStatusArray);
+    // writeToVirtualDocument(clanMembersArray, clanMembersStatusArray);
   }
 
-  function writeToVirtualDocument(clanMembersArray, clanMembersStatusArray) {
+  function buildTeamMenu() {
     var options = [];
 
+    const clanMembersArray = context.workspaceState.get("clanMembers");
+    const clanMembersStatusArray = context.workspaceState.get(
+      "clanMembersStatus"
+    );
+
     for (var i = 0; i < clanMembersArray.length; i++) {
+      var status;
+      var name;
+      if (clanMembersStatusArray[i] == undefined) {
+        status = "Loading ...";
+      } else {
+        status = "is" + clanMembersStatusArray[i];
+      }
+
       var item = {
         label: clanMembersArray[i],
-        description: "is " + clanMembersStatusArray[i],
+        description: status,
       };
       options.push(item);
     }
@@ -216,11 +226,10 @@ function activate(context) {
       else {
         //Load Team on click here
         if (_isInClan) {
+          buildTeamMenu();
           vscode.window.showInformationMessage(
             "Loading Clan " + _clanTag + "for " + _user.email
           );
-
-          // setInterval(getClan, 5000);
         } else {
           vscode.window.showInformationMessage("Create or Join a Clan first !");
           vscode.commands.executeCommand("code-game.CodeGame");
