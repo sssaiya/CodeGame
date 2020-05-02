@@ -15,6 +15,7 @@ var _uid = "0";
 var _user = null;
 var _isInClan = false;
 var _clanTag = null;
+var _username = null;
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -34,7 +35,7 @@ function activate(context) {
       context.globalState.update("uid", _uid);
       context.globalState.update("user", _user);
 
-      console.log("here");
+      _username = context.globalState.get("username"); // TODO - Get username from firebase
 
       //Get Existing clan that user is member of once signed in
       const clanRef = await firebase
@@ -89,10 +90,12 @@ function activate(context) {
       var isOfflineForDatabase = {
         state: "offline",
         last_changed: firebase.database.ServerValue.TIMESTAMP,
+        user_name: _username,
       };
       var isOnlineForDatabase = {
         state: "online",
         last_changed: firebase.database.ServerValue.TIMESTAMP,
+        user_name: _username,
       };
       firebase
         .database()
@@ -127,9 +130,15 @@ function activate(context) {
         .ref("/status/" + clanMembersArray[i])
         .on("value", function (snapshot) {
           const status = snapshot.val().state;
-          const username = snapshot.val().last_changed; // Change TODO to username (Collect on registration)
-          // console.log(status);
-          clanMembersStatusArray.push(status);
+          const username = snapshot.val().user_name; // Change TODO to username (Collect on registration)
+          const lastOnline = snapshot.val().last_changed;
+          const statusObj = {
+            user_name: username,
+            last_online: lastOnline,
+            status: status,
+          };
+          console.log(statusObj);
+          clanMembersStatusArray.push(statusObj);
         });
     }
     return clanMembersStatusArray;
@@ -164,16 +173,19 @@ function activate(context) {
     );
 
     for (var i = 0; i < clanMembersArray.length; i++) {
+      console.log(state);
+      var state = clanMembersStatusArray[i];
+      console.log(state);
       var status;
       var name;
-      if (clanMembersStatusArray[i] == undefined) {
+      if (state["status"] == undefined) {
         status = "Loading ...";
       } else {
-        status = "is" + clanMembersStatusArray[i];
+        status = "is" + state["status"];
       }
 
       var item = {
-        label: clanMembersArray[i],
+        label: state["user_name"],
         description: status,
       };
       options.push(item);
@@ -250,6 +262,7 @@ function activate(context) {
       var isActiveForDatabase = {
         state: "Active",
         last_changed: firebase.database.ServerValue.TIMESTAMP,
+        user_name: _username
       };
       if (_user) {
         console.log("Going Active");
@@ -278,6 +291,7 @@ function activate(context) {
       var isAwayForDatabase = {
         state: "away",
         last_changed: firebase.database.ServerValue.TIMESTAMP,
+        user_name: _username
       };
       if (_user) {
         console.log("Going Away");
@@ -301,13 +315,30 @@ function activate(context) {
     async function () {
       const email = await vscode.window.showInputBox({
         placeHolder: "Eg. superstar@clancode.com",
-        prompt: "Enter your email to log into ClanCode",
+        prompt: "Enter your email to Sign up with ClanCode",
+      });
+      const userName = await vscode.window.showInputBox({
+        placeHolder: "",
+        prompt:
+          "Enter your Username (This is how your clan mates will see you !)",
       });
       const password = await vscode.window.showInputBox({
         placeHolder: "",
-        prompt: "Enter your password to log into ClanCode",
+        prompt: "Enter your desired password",
         password: true,
       });
+      const password2 = await vscode.window.showInputBox({
+        placeHolder: "",
+        prompt: "Re-Enter your password",
+        password: true,
+      });
+
+      if (password != password2) {
+        vscode.window.showInformationMessage(
+          "Password Didn't Match! Please try again"
+        );
+        return;
+      }
 
       firebase
         .auth()
@@ -320,13 +351,14 @@ function activate(context) {
               "The email - " + email + "is Invalid"
             );
           }
-          var errorCode = error.code;
           var errorMessage = error.message;
           console.log(error.code);
           // ...
         });
 
       vscode.window.showInformationMessage("Registering " + email);
+      _username = userName;
+      context.globalState.update("username", _username); // Might be a future bug if allow multiple user accounts
     }
   );
 
