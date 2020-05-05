@@ -2,6 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 const vscode = require("vscode");
 var firebase = require("firebase/app");
+const ANSI = require("ansi-encode");
 require("firebase/auth");
 require("firebase/firestore");
 require("firebase/database");
@@ -11,11 +12,14 @@ const firebaseConfig = require("../firebaseConfig");
 const USER_NOT_FOUND = "auth/user-not-found";
 const INCORRECT_PASSWORD = "auth/wrong-password";
 const INVALID_EMAIL = "auth/invalid-email";
+const gnome = "../ansi-files/gnome.ans";
 var _uid = "0";
 var _user = null;
 var _isInClan = false;
 var _clanTag = null;
 var _username = null;
+var _clanName = null;
+var channel;
 
 /**
  * @param {vscode.ExtensionContext} context
@@ -25,6 +29,15 @@ function activate(context) {
   firebase.initializeApp(firebaseConfig);
   var provider = new firebase.auth.GithubAuthProvider();
   provider.addScope("repo"); // TODO - Remove if not nesessary but asks for permissions
+
+  channel = vscode.window.createOutputChannel("ClanCode");
+  // graphics = new ANSI();
+  let mess = "Hello world",
+    colorFG = "\u001b[31m",
+    resetFG = "\u001b[39m";
+  // console.log(colorFG + mess + resetFG);
+
+  // const result = ansiEncode(ansiEscapeStr);
 
   firebase.auth().onAuthStateChanged(async function (user) {
     console.log("IN AUTH STATE CHANGE");
@@ -66,8 +79,8 @@ function activate(context) {
         });
       var displayString = "Hello - ";
 
-      if (user.displayName) {
-        displayString = displayString + user.displayName;
+      if (_username) {
+        displayString = displayString + _username;
       } else {
         displayString = displayString + user.email;
         //TODO, Add Username, Email verify reminder hint (Aldready enabled on firebase)
@@ -173,28 +186,55 @@ function activate(context) {
     );
 
     for (var i = 0; i < clanMembersArray.length; i++) {
-      console.log(state);
+      // console.log(state);
       var state = clanMembersStatusArray[i];
-      console.log(state);
+      // console.log(state);
       var status;
       var name;
+      var activity;
       if (state["status"] == undefined) {
         status = "Loading ...";
       } else {
-        status = "is" + state["status"];
+        if (state["status"] == "away" || state["status"] == "offline") {
+          status = state["status"];
+          activity = state.last_online;
+        } else {
+          status = state["status"];
+          activity = "TODO";
+        }
       }
 
       var item = {
         label: state["user_name"],
         description: status,
+        activity: activity,
       };
       options.push(item);
     }
 
-    vscode.window.showQuickPick(options, {
-      placeHolder: _clanTag,
-      onDidSelectItem: (item) => {},
-    });
+    const tableheader =
+      "-----------------------------------------------------------------";
+    const tableheader2 =
+      "|    Username     |         Status         |      Activity       |";
+    // const clanName =
+    channel.clear();
+    channel.appendLine(tableheader + "\n" + tableheader2);
+    for (var i = 0; i < options.length; i++) {
+      const displayString =
+        options[i].label +
+        "        " +
+        options[i].description +
+        "        " +
+        options[i].activity;
+      channel.appendLine(displayString);
+    }
+
+    channel.show();
+
+    //   vscode.window.showQuickPick(options, {
+    //     placeHolder: _clanTag,
+    //     onDidSelectItem: (item) => {},
+    //   });
   }
 
   let alignment = 10;
@@ -239,9 +279,6 @@ function activate(context) {
         //Load Team on click here
         if (_isInClan) {
           buildTeamMenu();
-          vscode.window.showInformationMessage(
-            "Loading Clan " + _clanTag + "for " + _user.email
-          );
         } else {
           vscode.window.showInformationMessage("Create or Join a Clan first !");
           vscode.commands.executeCommand("code-game.CodeGame");
@@ -262,7 +299,7 @@ function activate(context) {
       var isActiveForDatabase = {
         state: "Active",
         last_changed: firebase.database.ServerValue.TIMESTAMP,
-        user_name: _username
+        user_name: _username,
       };
       if (_user) {
         console.log("Going Active");
@@ -291,7 +328,7 @@ function activate(context) {
       var isAwayForDatabase = {
         state: "away",
         last_changed: firebase.database.ServerValue.TIMESTAMP,
-        user_name: _username
+        user_name: _username,
       };
       if (_user) {
         console.log("Going Away");
