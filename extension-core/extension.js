@@ -13,18 +13,21 @@ const USER_NOT_FOUND = "auth/user-not-found";
 const INCORRECT_PASSWORD = "auth/wrong-password";
 const INVALID_EMAIL = "auth/invalid-email";
 const gnome = "../ansi-files/gnome.ans";
-var _uid = "0";
-var _user = null;
-var _isInClan = false;
-var _clanTag = null;
-var _username = null;
-var _clanName = null;
+
 var channel;
 
 /**
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
+  var userData = {
+    _username: null,
+    _useremail: null,
+    _isInClan: false,
+    _clanTag: null,
+    _clanName: null,
+  };
+  var _uid = "0";
   // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   var provider = new firebase.auth.GithubAuthProvider();
@@ -43,51 +46,45 @@ function activate(context) {
     console.log("IN AUTH STATE CHANGE");
     if (user) {
       _uid = user.uid;
-      _user = user;
 
-      context.globalState.update("uid", _uid);
-      context.globalState.update("user", _user);
-
-      _username = context.globalState.get("username"); // TODO - Get username from firebase
-
-      //Get Existing clan that user is member of once signed in
-      const clanRef = await firebase
+      // Get userdata from firebase
+      await firebase
         .database()
-        .ref("/members-list/" + _uid)
+        .ref("/users/" + _uid)
         .once("value")
         .then(function (snapshot) {
-          if (!snapshot.val()) _isInClan = false;
-          else {
-            _isInClan = true;
-            _clanTag = snapshot.val();
-            context.globalState.update("isInClan", _isInClan);
-            context.globalState.update("clanTag", _clanTag);
-            const getClan = async function () {
-              var clanRef = firebase
-                .database()
-                .ref("/clans/" + _clanTag + "/members");
-              clanRef.once("value").then(async function (snapshot) {
-                const clanMembers = snapshot;
-                getClanStatus(clanMembers);
-              });
-            };
-            //Activate status listener
-            console.log("Activated Clan Status Listener");
-            getClan();
-            setInterval(getClan, 5000); //every 5s
-          }
+          userData._isInClan = snapshot.val()._isInClan;
+          userData._username = snapshot.val()._username;
+          userData._useremail = snapshot.val()._useremail;
+          userData._clanTag = snapshot.val()._clanTag;
+          userData._clanName = snapshot.val()._clanName;
+          // userData = snapshot.val();
         });
-      var displayString = "Hello - ";
 
-      if (_username) {
-        displayString = displayString + _username;
-      } else {
-        displayString = displayString + user.email;
-        //TODO, Add Username, Email verify reminder hint (Aldready enabled on firebase)
-      }
+      const getClan = async function () {
+        if (userData._isInClan) {
+          var clanRef = firebase
+            .database()
+            .ref("/clans/" + userData._clanTag + "/members");
+          clanRef.once("value").then(async function (snapshot) {
+            const clanMembers = snapshot;
+            getClanStatus(clanMembers);
+          });
+        }
+      };
+      //Activate status listener
+      console.log("Activated Clan Status Listener");
+      getClan();
+      setInterval(getClan, 5000); //every 5s
 
-      if (_isInClan) {
-        displayString = displayString + ", member of clan - " + _clanTag;
+      var displayString = "Hello - " + userData._username;
+
+      if (userData._isInClan) {
+        displayString =
+          displayString + ", member of clan - " + userData._clanTag;
+      }else{
+        displayString =
+          displayString + ", Create or Join a clan via its Clan Tag to get started !"
       }
       vscode.window.showInformationMessage(displayString);
 
@@ -103,12 +100,12 @@ function activate(context) {
       var isOfflineForDatabase = {
         state: "offline",
         last_changed: firebase.database.ServerValue.TIMESTAMP,
-        user_name: _username,
+        user_name: userData._username,
       };
       var isOnlineForDatabase = {
         state: "online",
         last_changed: firebase.database.ServerValue.TIMESTAMP,
-        user_name: _username,
+        user_name: userData._username,
       };
       firebase
         .database()
@@ -230,11 +227,6 @@ function activate(context) {
     }
 
     channel.show();
-
-    //   vscode.window.showQuickPick(options, {
-    //     placeHolder: _clanTag,
-    //     onDidSelectItem: (item) => {},
-    //   });
   }
 
   let alignment = 10;
@@ -277,13 +269,12 @@ function activate(context) {
         );
       else {
         //Load Team on click here
-        if (_isInClan) {
+        if (userData._isInClan) {
           buildTeamMenu();
         } else {
           vscode.window.showInformationMessage("Create or Join a Clan first !");
           vscode.commands.executeCommand("code-game.CodeGame");
         }
-        // vscode.
       }
     }
   );
@@ -299,9 +290,9 @@ function activate(context) {
       var isActiveForDatabase = {
         state: "Active",
         last_changed: firebase.database.ServerValue.TIMESTAMP,
-        user_name: _username,
+        user_name: userData._username,
       };
-      if (_user) {
+      if (_uid != "0") {
         console.log("Going Active");
         firebase
           .database()
@@ -328,9 +319,9 @@ function activate(context) {
       var isAwayForDatabase = {
         state: "away",
         last_changed: firebase.database.ServerValue.TIMESTAMP,
-        user_name: _username,
+        user_name: userData._username,
       };
-      if (_user) {
+      if (_uid != "0") {
         console.log("Going Away");
         firebase
           .database()
@@ -377,7 +368,7 @@ function activate(context) {
         return;
       }
 
-      firebase
+      const userCred = await firebase
         .auth()
         .createUserWithEmailAndPassword(email, password)
         .catch(function (error) {
@@ -393,9 +384,19 @@ function activate(context) {
           // ...
         });
 
+      // if(userCred == null);
+      _uid = firebase.auth().currentUser.uid;
+
+      userData._username = userName;
+      userData._useremail = email;
+
+      //Add user metaData
+      firebase
+        .database()
+        .ref("/users/" + _uid)
+        .set(userData);
+
       vscode.window.showInformationMessage("Registering " + email);
-      _username = userName;
-      context.globalState.update("username", _username); // Might be a future bug if allow multiple user accounts
     }
   );
 
@@ -440,9 +441,6 @@ function activate(context) {
   let createClanMenu = vscode.commands.registerCommand(
     "code-game.createClan",
     async function createClan() {
-      if (_user == null) {
-        return;
-      }
       // const checkButton = vscode.QuickInputButtons;
       // Note, Buttons need Typescript, learn it soon
       // const button = vscode.QuickInputButton().;
@@ -454,7 +452,6 @@ function activate(context) {
       const clanTag = GetUniqueClanTag(6);
       vscode.window.showInformationMessage(clanTag);
 
-      // const clanTag = "000000"; // TODO Unique ID generation (base 32)
       //https://stackoverflow.com/questions/9543715/generating-human-readable-usable-short-but-unique-ids
 
       //Create the clann in DB
@@ -484,22 +481,34 @@ function activate(context) {
       vscode.window.showInformationMessage(
         "Created Clan - " + clanName + " And Clan Tag - " + clanTag
       );
-      _isInClan = true;
-      _clanTag = clanTag;
+
+      userData._isInClan = true;
+      userData._clanTag = clanTag;
+      userData._clanName = clanName;
+
+      //Add user metaData
+      firebase
+        .database()
+        .ref("/users/" + _uid)
+        .set(userData);
     }
   );
 
   let joinClanMenu = vscode.commands.registerCommand(
     "code-game.joinClan",
     async function joinClan() {
-      if (_user == null) {
-        return;
-      }
       const clanTagLowerCase = await vscode.window.showInputBox({
         placeHolder: "Eg. ******",
         prompt: "Join a Clan via its ClanTag",
       });
       const clanTag = clanTagLowerCase.toUpperCase(); //Configured to be case insensitive in DB :)
+
+      const clanName = await firebase
+        .database()
+        .ref("clans/" + clanTag)
+        .on("value", function (snapshot) {
+          return snapshot.val().name;
+        });
 
       console.log("Attempting to join clan" + clanTag);
 
@@ -515,8 +524,15 @@ function activate(context) {
         .ref("/members-list/" + _uid);
 
       clanMemberAssociationList.set(clanTag);
-      _clanTag = clanTag;
-      _isInClan = true;
+
+      userData._clanTag = clanTag;
+      userData._isInClan = true;
+      userData._clanName = clanName;
+
+      firebase
+        .database()
+        .ref("/users/" + _uid)
+        .set(userData);
     }
   );
 
@@ -529,12 +545,12 @@ function activate(context) {
       // _uid = context.globalState.get("uid");
       // _isInClan = context.globalState.get("isInClan");
       // _clanTag = context.globalState.get("clanTag");
-      if (_user == null) {
+      if (_uid == "0") {
         options.push("Register");
         options.push("Sign in");
       } else {
         // Is Signed in/ Authenticated
-        if (!_isInClan) {
+        if (!userData._isInClan) {
           options.push("Create Clan");
           options.push("Join Clan");
         }
@@ -543,16 +559,16 @@ function activate(context) {
         placeHolder: "Welcome To ClanCode",
         onDidSelectItem: (item) => {
           if (item == "Create Clan" || item == "Join Clan") {
-            if (_user == null) {
+            if (_uid == "0") {
               vscode.window.showInformationMessage(
                 `Please Sign in before trying to ${item}`
               );
             }
           }
           if (item == "Sign in" || item == "Register") {
-            if (_user != null) {
+            if (_uid != "0") {
               vscode.window.showInformationMessage(
-                "Signed in as " + _user.email
+                "Signed in as " + userData._username
               );
             }
           }
