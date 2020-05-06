@@ -82,9 +82,10 @@ function activate(context) {
       if (userData._isInClan) {
         displayString =
           displayString + ", member of clan - " + userData._clanTag;
-      }else{
+      } else {
         displayString =
-          displayString + ", Create or Join a clan via its Clan Tag to get started !"
+          displayString +
+          ", Create or Join a clan via its Clan Tag to get started !";
       }
       vscode.window.showInformationMessage(displayString);
 
@@ -368,7 +369,7 @@ function activate(context) {
         return;
       }
 
-      const userCred = await firebase
+      await firebase
         .auth()
         .createUserWithEmailAndPassword(email, password)
         .catch(function (error) {
@@ -472,12 +473,6 @@ function activate(context) {
         .ref("/clans/" + clanTag + "/members");
       clanMembersDatabaseRef.push(_uid);
 
-      //Double link for easy of access
-      var clanMemberAssociationList = firebase
-        .database()
-        .ref("/members-list/" + _uid)
-        .set(clanTag);
-
       vscode.window.showInformationMessage(
         "Created Clan - " + clanName + " And Clan Tag - " + clanTag
       );
@@ -503,27 +498,34 @@ function activate(context) {
       });
       const clanTag = clanTagLowerCase.toUpperCase(); //Configured to be case insensitive in DB :)
 
-      const clanName = await firebase
+      var clanName = null;
+      await firebase
         .database()
         .ref("clans/" + clanTag)
         .on("value", function (snapshot) {
-          return snapshot.val().name;
+          if (snapshot.val() != null) {
+            clanName = snapshot.val().name;
+          } else {
+            console.log("ERROR WRONG CLAN TAG");
+          }
         });
 
-      console.log("Attempting to join clan" + clanTag);
+      if (clanName == null) {
+        vscode.window.showInformationMessage(
+          "Clan with Tag -" +
+            clanTag +
+            " doesn't exist, create or join via Clan Tag"
+        );
+        return;
+      }
+
+      console.log("Attempting to join clan" + clanName);
 
       //Add to the Clan
       var clanMembersDatabaseRef = firebase
         .database()
         .ref("/clans/" + clanTag + "/members");
       clanMembersDatabaseRef.push(_uid);
-
-      //Double link for easy of access
-      var clanMemberAssociationList = firebase
-        .database()
-        .ref("/members-list/" + _uid);
-
-      clanMemberAssociationList.set(clanTag);
 
       userData._clanTag = clanTag;
       userData._isInClan = true;
