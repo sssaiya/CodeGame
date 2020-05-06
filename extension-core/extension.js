@@ -154,11 +154,6 @@ function activate(context) {
     }
     return clanMembersStatusArray;
   }
-  // async function asyncForEach(array, callback) {
-  //   for (let index = 0; index < array.length; index++) {
-  //     await callback(array[index], index, array);
-  //   }
-  // }
 
   async function getClanStatus(clanMembers) {
     var clanMembersArray = [];
@@ -184,11 +179,8 @@ function activate(context) {
     );
 
     for (var i = 0; i < clanMembersArray.length; i++) {
-      // console.log(state);
       var state = clanMembersStatusArray[i];
-      // console.log(state);
       var status;
-      var name;
       var activity;
       if (state["status"] == undefined) {
         status = "Loading ...";
@@ -203,27 +195,28 @@ function activate(context) {
       }
 
       var item = {
-        label: state["user_name"],
-        description: status,
+        name: state["user_name"],
+        state: status,
         activity: activity,
       };
       options.push(item);
     }
 
     const tableheader =
-      "-----------------------------------------------------------------";
+      "______________________________________________________________";
     const tableheader2 =
-      "|    Username     |         Status         |      Activity       |";
-    // const clanName =
+      "|      Username      |       Status       |     Activity     |";
     channel.clear();
     channel.appendLine(tableheader + "\n" + tableheader2);
+
+    const usernameLength = 20;
+
     for (var i = 0; i < options.length; i++) {
+      const name = padWithSpaces(options[i].name, usernameLength);
+      const state = padWithSpaces(options[i].state, usernameLength);
+
       const displayString =
-        options[i].label +
-        "        " +
-        options[i].description +
-        "        " +
-        options[i].activity;
+        "|" + name + "|" + state + "|" + options[i].activity;
       channel.appendLine(displayString);
     }
 
@@ -543,10 +536,6 @@ function activate(context) {
     "code-game.CodeGame",
     async function showQuickPick() {
       var options = [];
-      // _user = context.globalState.get("user");
-      // _uid = context.globalState.get("uid");
-      // _isInClan = context.globalState.get("isInClan");
-      // _clanTag = context.globalState.get("clanTag");
       if (_uid == "0") {
         options.push("Register");
         options.push("Sign in");
@@ -608,6 +597,16 @@ function activate(context) {
       tagBuilder = tagBuilder + _base62chars.charAt(keyIndex);
     }
     return tagBuilder;
+  }
+
+  function padWithSpaces(name, length) {
+    const toPad = length - name.length;
+    var newString = name;
+    for (var i = 0; i < toPad; i++) {
+      if (i % 2 != 0) newString = newString + " ";
+      else newString = " " + newString;
+    }
+    return newString;
   }
 
   context.subscriptions.push(
